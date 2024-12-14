@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kompose Online - Convert Docker Compose to Helm Charts</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        .container { max-width: 800px; }
+        .file-drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .file-drop-area.dragover {
+            border-color: #000;
+            background-color: #f8f9fa;
+        }
+        #resultArea {
+            display: none;
+        }
+        .yaml-content {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        #yamlEditor {
+            font-family: monospace;
+            height: 300px;
+            resize: vertical;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        #validationStatus {
+            margin-top: 10px;
+        }
+        .github-link {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .github-link:hover {
+            color: #000;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .logo-container img {
+            height: 100px;
+            margin-bottom: 1rem;
+        }
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <a href="https://github.com/RiccardoTOTI" target="_blank" class="github-link" title="Visit my GitHub profile">
+        <i class="fa fa-github"></i>
+    </a>
+
+    <div class="container my-5">
+        <div class="logo-container">
+            <img src="https://kompose.io/assets/images/logo.png" alt="Kompose Logo">
+            <h1>Kompose Online</h1>
+            <p class="text-muted">Convert your Docker Compose files to Kubernetes/Helm Charts</p>
+        </div>
+
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#upload">Upload File</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#paste">Paste YAML</a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <div id="upload" class="tab-pane active">
+                <div class="file-drop-area" id="dropZone">
+                    <p class="mb-0">Drag and drop your docker-compose.yml file here</p>
+                    <p class="text-muted">or</p>
+                    <input type="file" id="fileInput" class="d-none" accept=".yml,.yaml">
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                </div>
+            </div>
+            <div id="paste" class="tab-pane">
+                <textarea id="yamlEditor" class="form-control" placeholder="Paste your docker-compose.yml content here...">version: '3'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./html:/usr/share/nginx/html</textarea>
+                <div id="validationStatus"></div>
+                <button class="btn btn-primary mt-3" onclick="convertPasted()">Convert to Helm</button>
+            </div>
+        </div>
+
+        <div id="uploadStatus" class="alert alert-info d-none">
+            Converting...
+        </div>
+
+        <div id="resultArea">
+            <h3>Generated Helm Charts:</h3>
+            <div id="filesContent"></div>
+            <button class="btn btn-success mt-3" onclick="downloadAll()">Download All Files</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>Created by <a href="https://github.com/RiccardoTOTI" target="_blank">Riccardo TOTI</a> | Powered by <a href="https://kompose.io" target="_blank">Kompose</a></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const resultArea = document.getElementById('resultArea');
+        const filesContent = document.getElementById('filesContent');
+        const yamlEditor = document.getElementById('yamlEditor');
+        const validationStatus = document.getElementById('validationStatus');
+
+        let yamlValidationTimeout;
+
+        yamlEditor.addEventListener('input', () => {
+            clearTimeout(yamlValidationTimeout);
+            yamlValidationTimeout = setTimeout(validateYaml, 500);
+        });
+
+        function validateYaml() {
+            const content = yamlEditor.value;
+            if (!content.trim()) {
+                validationStatus.innerHTML = '';
+                return;
+            }
+
+            fetch('/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.valid) {
+                    validationStatus.innerHTML = '<div class="alert alert-success">Valid YAML</div>';
+                } else {
+                    validationStatus.innerHTML = `<div class="alert alert-danger">Invalid YAML: ${data.error}</div>`;
+                }
+            });
+        }
+
+        function convertPasted() {
+            const content = yamlEditor.value;
+            if (!content.trim()) {
+                alert('Please enter some YAML content');
+                return;
+            }
+
+            uploadStatus.classList.remove('d-none');
+            resultArea.style.display = 'none';
+            filesContent.innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('content', content);
+
+            fetch('/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(handleConversionResponse)
+            .catch(handleConversionError);
+        }
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        // Highlight drop zone when dragging over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFiles, false);
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files: files } });
+        }
+
+        function handleFiles(e) {
+            const files = e.target.files;
+            uploadFile(files[0]);
+        }
+
+        function uploadFile(file) {
+            uploadStatus.classList.remove('d-none');
+            resultArea.style.display = 'none';
+            filesContent.innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(handleConversionResponse)
+            .catch(handleConversionError);
+        }
+
+        function handleConversionResponse(response) {
+            return response.json().then(data => {
+                uploadStatus.classList.add('d-none');
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                resultArea.style.display = 'block';
+                Object.entries(data.files).forEach(([filename, content]) => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'mb-4';
+                    fileDiv.innerHTML = `
+                        <h4>${filename}</h4>
+                        <div class="yaml-content">${content}</div>
+                    `;
+                    filesContent.appendChild(fileDiv);
+                });
+            });
+        }
+
+        function handleConversionError(error) {
+            uploadStatus.classList.add('d-none');
+            alert('Error converting file: ' + error);
+        }
+
+        function downloadAll() {
+            const zip = new JSZip();
+            const files = document.querySelectorAll('.yaml-content');
+            files.forEach(file => {
+                const filename = file.previousElementSibling.textContent;
+                zip.file(filename, file.textContent);
+            });
+            
+            zip.generateAsync({type:"blob"})
+            .then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = "helm-charts.zip";
+                link.click();
+            });
+        }
+
+        // Validate the default YAML content on page load
+        validateYaml();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</body>
+</html>
