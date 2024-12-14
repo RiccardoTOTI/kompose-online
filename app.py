@@ -33,6 +33,10 @@ Talisman(app,
 # CSRF protection
 csrf = SeaSurf(app)
 
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=csrf._get_token())
+
 # Setup logging
 if not os.path.exists('logs'):
     os.mkdir('logs')
