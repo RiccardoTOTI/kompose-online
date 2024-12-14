@@ -1,4 +1,4 @@
-name: Deploy to Heroku
+name: Deploy to Heroku and Create Release
 
 on:
   push:
@@ -10,6 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history for all tags and branches
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          echo "VERSION=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v${{ steps.get_version.outputs.VERSION }} \
+            --title "Release v${{ steps.get_version.outputs.VERSION }}" \
+            --notes "$(git log -1 --pretty=format:%s)" \
+            --target ${{ github.sha }}
 
       - name: Login to Heroku Container Registry
         env:
