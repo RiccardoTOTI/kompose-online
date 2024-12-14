@@ -27,7 +27,10 @@ RUN mkdir -p logs && chown -R appuser:appuser /app
 # Switch to non-root user
 USER appuser
 
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 5000
 
 # Use gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 4 --access-logfile - --error-logfile - app:app
