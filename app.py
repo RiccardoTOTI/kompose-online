@@ -25,9 +25,10 @@ Talisman(app,
          session_cookie_secure=os.getenv('FLASK_ENV') == 'production',  # Only secure cookies in production
          content_security_policy={
              'default-src': "'self'",
-             'script-src': ["'self'", 'cdnjs.cloudflare.com', "'unsafe-inline'"],
+             'script-src': ["'self'", 'cdnjs.cloudflare.com', "'unsafe-inline'", 'cdn.jsdelivr.net'],
              'style-src': ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
              'img-src': ["'self'", 'raw.githubusercontent.com', 'kompose.io'],
+             'font-src': ["'self'", 'cdn.jsdelivr.net'],
          })
 
 # CSRF protection
