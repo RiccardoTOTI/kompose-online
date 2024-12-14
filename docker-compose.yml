@@ -7,9 +7,6 @@ services:
       - "5000:5000"
     volumes:
       - ./logs:/app/logs
-      - .:/app
-    env_file:
-      - config.env
     environment:
       - FLASK_ENV=production
     healthcheck:

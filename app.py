@@ -18,29 +18,17 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
 app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB max file size
 
-# Configure security based on environment
-if os.getenv('FLASK_ENV') == 'production':
-    # Production security settings
-    Talisman(app,
-             force_https=True,
-             strict_transport_security=True,
-             session_cookie_secure=True,
-             content_security_policy={
-                 'default-src': "'self'",
-                 'script-src': ["'self'", 'cdnjs.cloudflare.com', "'unsafe-inline'"],
-                 'style-src': ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
-                 'img-src': ["'self'", 'kompose.io', 'raw.githubusercontent.com'],
-             })
-else:
-    # Development security settings - more permissive
-    Talisman(app,
-             force_https=False,
-             force_https_permanent=False,
-             strict_transport_security=False,
-             session_cookie_secure=False,
-             content_security_policy={
-                 'default-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "blob:", "*"],
-             })
+# Security headers
+Talisman(app, 
+         force_https=os.getenv('FLASK_ENV') == 'production',  # Only force HTTPS in production
+         strict_transport_security=True,
+         session_cookie_secure=os.getenv('FLASK_ENV') == 'production',  # Only secure cookies in production
+         content_security_policy={
+             'default-src': "'self'",
+             'script-src': ["'self'", 'cdnjs.cloudflare.com', "'unsafe-inline'"],
+             'style-src': ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
+             'img-src': ["'self'", 'raw.githubusercontent.com', 'kompose.io'],
+         })
 
 # CSRF protection
 csrf = SeaSurf(app)
@@ -162,5 +150,4 @@ def convert():
         }), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
