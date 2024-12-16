@@ -6,11 +6,17 @@
   "packageRules": [
     {
       "matchManagers": ["pip_requirements"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "enabled": true
     }
   ],
   "pip_requirements": {
     "fileMatch": ["^requirements\\.txt$"]
-  }
+  },
+  "rangeStrategy": "bump",
+  "separateMajorMinor": true,
+  "dependencyDashboard": true,
+  "schedule": ["every weekend"],
+  "prHourlyLimit": 0,
+  "stabilityDays": 3
 }
