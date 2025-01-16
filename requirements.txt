@@ -3,6 +3,6 @@ werkzeug==2.3.8
 PyYAML==6.0.2
 gunicorn==23.0.0
 Flask-Talisman==1.1.0
-Flask-SeaSurf==1.1.1
+Flask-SeaSurf==2.0.0
 ratelimit==2.2.1
 python-dotenv==1.0.1
