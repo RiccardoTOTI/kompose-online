@@ -1,7 +1,7 @@
 flask==3.1.1
 werkzeug==3.1.5
 PyYAML==6.0.2
-gunicorn==23.0.0
+gunicorn==26.2.0
 Flask-Talisman==1.1.0
 Flask-SeaSurf==2.0.0
 ratelimit==2.2.1
